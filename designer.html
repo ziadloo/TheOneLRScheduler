@@ -207,9 +207,13 @@
         realPoints[realPoints.length - 1].x = numberOfSteps;
         realPoints[0].y = initialLR;
 
-        pythonCode.innerHTML = `import TheOneLRScheduler
+        pythonCode.innerHTML = `import torch
+from TheOneLRScheduler import TheOneLRScheduler
 
-points = ${JSON.stringify(realPoints, null, 4)}`;
+points = ${JSON.stringify(realPoints, null, 4)}
+
+optimizer = torch.optim.SGD(model.parameters(), lr=${initialLR})
+scheduler = TheOneLRScheduler(optimizer, points)`;
       }
 
       function showSelectedPointCoordinate() {
