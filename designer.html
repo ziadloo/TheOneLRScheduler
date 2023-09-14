@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <title>Bezier Curve Drawer</title>
+    <style>
+      ul {
+        padding: 0;
+        /* Remove padding */
+        margin: 0;
+        /* Remove margins */
+      }
+
+      .remove-btn {
+        margin-left: 10px;
+      }
+
+      #addCurve {
+        margin-bottom: 10px;
+      }
+
+      .code-container {
+        position: relative;
+        display: inline-block;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        font-family: monospace;
+        width: 100%;
+        border-radius: 5px;
+        /* Add rounded corners */
+        margin-bottom: 10px;
+      }
+
+      .code {
+        font-family: monospace;
+        white-space: pre;
+        width: 100%;
+        border-radius: 5px;
+        /* Add rounded corners */
+      }
+
+      .copy-button {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        padding: 5px 10px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        /* Add rounded corners */
+      }
+
+    </style>
+  </head>
+
+  <body>
+    <table>
+      <tr>
+        <td>
+          <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
+        </td>
+        <td align="right">
+          step: <input type="text" id="XCoordinate" size="5" disabled />
+          LR: <input type="text" id="YCoordinate" size="5" disabled />
+        </td>
+        <td align="center">
+          <button id="addCurve">Add curve</button>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top" colspan="2" rowspan="2">
+          <canvas id="canvas" width="800" height="400" style="border: 1px solid black;"></canvas>
+        </td>
+        <td valign="top">
+          <ol id="pointList">
+            <li>
+              <select>
+                <option>Line</option>
+                <option>Bezier</option>
+              </select>
+              <button>x</button>
+            </li>
+          </ol>
+        </td>
+      </tr>
+      <tr>
+        <td align="center">
+          <button id="importJson">Import JSON</button>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="3">
+          <div class="code-container">
+            $ <span class="code" id="pip">pip install</span>
+            <button class="copy-button" onclick="copyToClipboard('pip')">Copy</button>
+          </div>
+          <br />
+          <div class="code-container">
+            <span class="code" id="python">pip install</span>
+            <button class="copy-button" onclick="copyToClipboard('python')">Copy</button>
+          </div>
+
+          <script>
+            function copyToClipboard(codeBoxId) {
+              const codeText = document.getElementById(codeBoxId);
+              const textArea = document.createElement("textarea");
+              textArea.value = codeText.textContent;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand("copy");
+              document.body.removeChild(textArea);
+              alert("Code copied to clipboard!");
+            }
+
+          </script>
+        </td>
+      </tr>
+    </table>
+
+
+
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const imageUpload = document.getElementById('imageUpload');
+      const clearBkg = document.getElementById('clearBkg');
+      const backgroundImg = new Image();
+      const addCurve = document.getElementById('addCurve');
+      const pointList = document.getElementById('pointList');
+      const xCoordinate = document.getElementById('XCoordinate');
+      const yCoordinate = document.getElementById('YCoordinate');
+      const pythonCode = document.getElementById("python");
+      const importJson = document.getElementById("importJson");
+
+      // Variable to keep track of the selected point
+      let selectedPoint = null;
+      let selectedPointIndex = -1;
+      let clickDown = false;
+
+      let numberOfSteps = 1000;
+      let initialLR = 0.1;
+
+      // Control points
+      let points = [{
+          x: canvas.width / 16,
+          y: canvas.height / 16,
+          selected: false
+        },
+        {
+          control1: {
+            x: canvas.width / 16 * 7.5,
+            y: canvas.height / 16,
+            selected: false
+          },
+          control2: {
+            x: canvas.width / 16 * 7.5,
+            y: canvas.height / 16 * 15,
+            selected: false
+          }
+        },
+        {
+          x: canvas.width / 16 * 15,
+          y: canvas.height / 16 * 15,
+          selected: false
+        }
+      ];
+
+      function canvasToReal(point) {
+        const canvasX = point.x - points[0].x;
+        const canvasY = -(point.y - points[points.length - 1].y);
+
+        const canvasToRealRatio_X = numberOfSteps / (points[points.length - 1].x - points[0].x);
+        const canvasToRealRatio_Y = initialLR / (points[points.length - 1].y - points[0].y);
+
+        return {
+          x: parseInt(canvasX * canvasToRealRatio_X),
+          y: Math.round((canvasY * canvasToRealRatio_Y + Number.EPSILON) * 10000) / 10000,
+        };
+      }
+
+      function realToCanvas(point) {
+        const canvasToRealRatio_X = numberOfSteps / (points[points.length - 1].x - points[0].x);
+        const canvasToRealRatio_Y = initialLR / (points[points.length - 1].y - points[0].y);
+
+        return {
+          x: parseInt(point.x / canvasToRealRatio_X) + points[0].x,
+          y: points[points.length - 1].y - parseInt(point.y / canvasToRealRatio_Y),
+        };
+      }
+
+      function populatePython() {
+        const realPoints = [];
+        for (let i = 0; i < points.length; i++) {
+          if (points[i].control1 && points[i].control2) {
+            realPoints.push({
+              control1: canvasToReal(points[i].control1),
+              control2: canvasToReal(points[i].control2),
+            });
+          } else {
+            realPoints.push(canvasToReal(points[i]));
+          }
+        }
+
+        realPoints[realPoints.length - 1].x = numberOfSteps;
+        realPoints[0].y = initialLR;
+
+        pythonCode.innerHTML = `import TheOneLRScheduler
+
+points = ${JSON.stringify(realPoints, null, 4)}`;
+      }
+
+      function showSelectedPointCoordinate() {
+        if (selectedPoint) {
+          if (selectedPointIndex !== 0 && selectedPointIndex !== points.length - 1) {
+            const realCoordinate = canvasToReal(selectedPoint);
+            xCoordinate.disabled = false;
+            xCoordinate.value = realCoordinate.x;
+            yCoordinate.disabled = false;
+            yCoordinate.value = realCoordinate.y;
+          } else if (selectedPointIndex === 0) {
+            xCoordinate.disabled = true;
+            xCoordinate.value = 0;
+            yCoordinate.disabled = false;
+            yCoordinate.value = initialLR;
+          } else {
+            xCoordinate.disabled = false;
+            xCoordinate.value = numberOfSteps;
+            yCoordinate.disabled = true;
+            yCoordinate.value = 0;
+          }
+        } else {
+          xCoordinate.disabled = true;
+          yCoordinate.disabled = true;
+          xCoordinate.value = "";
+          yCoordinate.value = "";
+        }
+
+        populatePython();
+      }
+
+      function syncUIWithPoints() {
+        function _deleteLine(index) {
+          points.splice(index, 1);
+          syncUIWithPoints();
+          drawAll();
+        }
+
+        function _deleteBezier(index) {
+          points.splice(index, 2);
+          syncUIWithPoints();
+          drawAll();
+        }
+
+        function _changeToLine(index) {
+          points.splice(index + 1, 1);
+          syncUIWithPoints();
+          drawAll();
+        }
+
+        function _changeToBezier(index) {
+          const controllers = {
+            control1: {
+              x: parseInt((points[index].x + points[index + 1].x) / 2),
+              y: points[index].y,
+              selected: false
+            },
+            control2: {
+              x: parseInt((points[index].x + points[index + 1].x) / 2),
+              y: points[index + 1].y,
+              selected: false
+            }
+          };
+          points.splice(index + 1, 0, controllers);
+          syncUIWithPoints();
+          drawAll();
+        }
+
+        function _addCurve(index, type, text) {
+          const select = document.createElement("select");
+          const option1 = document.createElement("option");
+          option1.value = "bezier";
+          option1.text = "Bezier";
+          select.appendChild(option1);
+          const option2 = document.createElement("option");
+          option2.value = "line";
+          option2.text = "Line";
+          select.appendChild(option2);
+
+          if (type === "bezier") {
+            option1.selected = true;
+          } else {
+            option2.selected = true;
+          }
+          const li = document.createElement("li");
+          li.appendChild(select);
+
+          if (index != 0) {
+            const button = document.createElement("button");
+            button.innerHTML = "x";
+            button.className += ' remove-btn';
+            li.appendChild(button);
+            button.addEventListener('click', () => {
+              if (type === "line") {
+                _deleteLine(index);
+              } else {
+                _deleteBezier(index);
+              }
+            });
+          }
+
+          select.addEventListener('change', () => {
+            if (type === "line") {
+              _changeToBezier(index);
+            } else {
+              _changeToLine(index);
+            }
+          });
+
+          pointList.appendChild(li);
+        }
+
+        pointList.innerHTML = "";
+
+        for (let i = 0; i < points.length - 1; i++) {
+          if (points[i + 1].control1 && points[i + 1].control2) {
+            _addCurve(i, "bezier", "Bezier");
+            i++;
+          } else {
+            _addCurve(i, "line", "Line");
+          }
+        }
+
+        populatePython();
+      }
+
+      function drawAll() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
+        drawCurves();
+        drawPoints();
+        drawAxis();
+      }
+
+      // Function to draw the control points
+      function drawPoints() {
+        function _drawPoint(point) {
+          if (point.selected) {
+            ctx.fillStyle = 'blue';
+          } else {
+            ctx.fillStyle = 'white';
+          }
+          ctx.fillRect(point.x - 5, point.y - 5, 10, 10);
+          ctx.strokeRect(point.x - 5, point.y - 5, 10, 10);
+        }
+
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+
+        points.forEach((item, index) => {
+          if (item.control1 && item.control2) {
+            _drawPoint(item.control1);
+            _drawPoint(item.control2);
+          } else {
+            _drawPoint(item);
+          }
+        });
+      }
+
+      function drawAxis() {
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+
+        const axises = [
+          points[0],
+          points[points.length - 1],
+        ];
+
+        ctx.beginPath();
+        ctx.moveTo(axises[0].x, 0);
+        ctx.lineTo(axises[0].x, canvas.height);
+        ctx.moveTo(0, axises[1].y);
+        ctx.lineTo(canvas.width, axises[1].y);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, axises[0].y);
+        ctx.lineTo(canvas.width, axises[0].y);
+        ctx.moveTo(axises[1].x, 0);
+        ctx.lineTo(axises[1].x, canvas.height);
+        ctx.strokeStyle = 'gray';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Function to draw the Bezier curve
+      function drawCurves() {
+        function _drawBezier(point1, point2, point3, point4) {
+          ctx.beginPath();
+          ctx.moveTo(point1.x, point1.y);
+          ctx.bezierCurveTo(
+            point2.x, point2.y,
+            point3.x, point3.y,
+            point4.x, point4.y
+          );
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(point1.x, point1.y);
+          ctx.lineTo(point2.x, point2.y);
+          ctx.lineTo(point3.x, point3.y);
+          ctx.lineTo(point4.x, point4.y);
+          ctx.strokeStyle = 'gray';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        function _drawLine(point1, point2) {
+          ctx.beginPath();
+          ctx.moveTo(point1.x, point1.y);
+          ctx.lineTo(point2.x, point2.y);
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        for (let i = 0; i < points.length - 1; i++) {
+          if (points[i + 1].control1 && points[i + 1].control2) {
+            _drawBezier(points[i], points[i + 1].control1, points[i + 1].control2, points[i + 2]);
+            i++;
+          } else {
+            _drawLine(points[i], points[i + 1]);
+          }
+        }
+      }
+
+      // Function to draw the canvas background
+      function drawBackground() {
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+      }
+
+      // Initial draw
+      syncUIWithPoints();
+      drawAll();
+
+      // Event listeners
+      canvas.addEventListener('mousedown', (e) => {
+        function _select(mouseX, mouseY, point, index) {
+          if (mouseX >= point.x - 5 && mouseX <= point.x + 5 &&
+            mouseY >= point.y - 5 && mouseY <= point.y + 5) {
+            if (selectedPoint !== null) {
+              selectedPoint.selected = false;
+              selectedPointIndex = -1;
+            }
+            point.selected = true;
+            selectedPoint = point;
+            selectedPointIndex = index;
+            return true;
+          }
+          return false;
+        }
+
+        clickDown = true;
+        const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+        const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+        let selected = false;
+        for (let i = 0; i < points.length; i++) {
+          if (points[i].control1 && points[i].control2) {
+            selected = _select(mouseX, mouseY, points[i].control1, -1) ||
+              _select(mouseX, mouseY, points[i].control2, -1);
+          } else {
+            selected = _select(mouseX, mouseY, points[i], i);
+          }
+
+          if (selected) {
+            break;
+          }
+        }
+        if (!selected && selectedPoint !== null) {
+          selectedPoint.selected = false;
+          selectedPoint = null;
+          selectedPointIndex = -1;
+        }
+        drawAll();
+        showSelectedPointCoordinate();
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (clickDown && selectedPoint !== null) {
+          const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+          const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+          if (selectedPointIndex != -1) {
+            let prevPoint = null;
+            for (let i = selectedPointIndex; i > 0; i--) {
+              if (!points[i - 1].control1 || !points[i - 1].control2) {
+                prevPoint = points[i - 1];
+                break;
+              }
+            }
+
+            let nextPoint = null;
+            for (let i = selectedPointIndex; i < points.length - 1; i++) {
+              if (!points[i + 1].control1 || !points[i + 1].control2) {
+                nextPoint = points[i + 1];
+                break;
+              }
+            }
+
+            //console.log(prevPoint);
+
+            if (prevPoint && nextPoint) {
+              selectedPoint.x = Math.max(mouseX, prevPoint.x);
+              selectedPoint.x = Math.min(selectedPoint.x, nextPoint.x);
+            } else if (prevPoint) {
+              selectedPoint.x = Math.max(mouseX, prevPoint.x);
+            } else if (nextPoint) {
+              selectedPoint.x = Math.min(mouseX, nextPoint.x);
+            } else {
+              console.log(337);
+              selectedPoint.x = mouseX;
+            }
+
+            selectedPoint.y = mouseY;
+          } else {
+            selectedPoint.x = mouseX;
+            selectedPoint.y = mouseY;
+          }
+
+          drawAll();
+          showSelectedPointCoordinate();
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => {
+        clickDown = false;
+      });
+
+      // Event listener for image upload
+      imageUpload.addEventListener('change', () => {
+        if (imageUpload.files.length > 0) {
+          backgroundImg.src = URL.createObjectURL(imageUpload.files[0]);
+          backgroundImg.onload = () => {
+            drawAll();
+          };
+        }
+      });
+
+      clearBkg.addEventListener('click', () => {
+        backgroundImg.removeAttribute('src');
+        drawAll();
+      });
+
+      importJson.addEventListener('click', () => {
+        const text = window.prompt("Enter the JSON for the points:");
+        if (text) {
+          const json = JSON.parse(text);
+
+          numberOfSteps = json[json.length - 1].x;
+          initialLR = json[0].y;
+
+          points = [{
+              x: canvas.width / 16,
+              y: canvas.height / 16,
+              selected: false
+            },
+            {
+              x: canvas.width / 16 * 15,
+              y: canvas.height / 16 * 15,
+              selected: false
+            }
+          ];
+
+          for (let i = 1; i < json.length - 1; i++) {
+            if (json[i].control1 && json[i].control2) {
+              points.splice(i, 0, {
+                control1: realToCanvas(json[i].control1),
+                control2: realToCanvas(json[i].control2),
+              });
+            } else {
+              points.splice(i, 0, realToCanvas(json[i]));
+            }
+          }
+
+          syncUIWithPoints();
+          drawAll();
+        }
+      });
+
+      // Event listener for image upload
+      addCurve.addEventListener('click', () => {
+        const lastIndex = points.length - 1;
+        points.push({
+          x: points[lastIndex].x,
+          y: points[lastIndex].y,
+          selected: points[lastIndex].selected,
+        });
+
+        let prevPoint = null;
+        for (let i = lastIndex; i > 0; i--) {
+          if (!points[i - 1].control1 || !points[i - 1].control2) {
+            prevPoint = points[i - 1];
+            break;
+          }
+        }
+
+        points[lastIndex].x = parseInt((prevPoint.x + points[points.length - 1].x) / 2);
+        points[lastIndex].selected = false;
+
+        syncUIWithPoints();
+        drawAll();
+      });
+
+      xCoordinate.addEventListener('change', (v) => {
+        if (selectedPointIndex !== points.length - 1) {
+          const onCanvas = realToCanvas({
+            x: xCoordinate.value,
+            y: yCoordinate.value,
+          });
+          selectedPoint.x = onCanvas.x;
+          selectedPoint.y = onCanvas.y;
+        } else {
+          numberOfSteps = parseInt(xCoordinate.value);
+        }
+        drawAll();
+        showSelectedPointCoordinate();
+      });
+
+      yCoordinate.addEventListener('change', () => {
+        if (selectedPointIndex !== 0) {
+          const onCanvas = realToCanvas({
+            x: xCoordinate.value,
+            y: yCoordinate.value,
+          });
+          console.log(onCanvas);
+          selectedPoint.x = onCanvas.x;
+          selectedPoint.y = onCanvas.y;
+        } else {
+          initialLR = yCoordinate.value;
+        }
+        drawAll();
+        showSelectedPointCoordinate();
+      });
+
+    </script>
+  </body>
+
+</html>
