@@ -2,7 +2,7 @@
 <html>
 
   <head>
-    <title>Bezier Curve Drawer</title>
+    <title>The One Learning Rate Scheduler Visual Designer</title>
     <style>
       ul {
         padding: 0;
@@ -53,12 +53,58 @@
         /* Add rounded corners */
       }
 
+      .instructions LI {
+        margin-top: 20px;
+      }
     </style>
   </head>
 
   <body>
-    <table>
+    <table style="margin: auto;">
       <tr>
+        <td rowspan="4" valign="top" style="padding-right: 40px; padding-top: 40px; width: 540px;">
+          <big>How to use this designer:</big>
+          <ol class="instructions">
+            <li>
+            <b>Set the initial learning rate:</b><br />
+            Select the left-most curve handler (square box) and then set the initial learning rate in the "LR" text box (found in the top-right corner).
+            </li>
+            <li>
+            <b>Set the number of steps you want to train your model:</b><br />
+            Select the right-most curve handler (square box) and then set the number of steps in the "step" text box (found on the left side of "LR" text box).<br />
+            The steps here refers to the number of times you'll be calling: <pre>scheduler.step()</pre>
+            </li>
+            <li>
+            <b>Manipulate the curve as you like by adding new parts and adjusting them using their handlers:</b><br />
+            You can add as many as you like new parts to the curve using the "Add curve" button.</br >
+            Each curve could be either a bezier or a straight like which you can select by changing their respective dropdown menu.
+            </li>
+            <li>
+            <b>Copy the code and use it in your own:</b><br />
+            The Python code will always match the state of the curve as you manipulate it. You can also use the pip command to install the package first.
+            </li>
+          </ol>
+          <br />
+          <big>Notes and other features:</big>
+          <ol class="instructions">
+            <li>
+            <b>The curve always ends in learning rate = 0:</b><br />
+            The design of this tool mandates to end the curve in a point with LR equals to zero. If this is something that does not work for you, you can add a new line to the end of the curve and with step value the same as the last point but with a learning rate higher than zero.
+            </li>
+            <li>
+            <b>Setting a background for the designer:</b><br />
+            Using this feature, if you have a screenshot of your previous training loss curves, you can set it as the background and try to design your LR scheduler to match it. This way you don't event need to pay attention to the X axis (steps) values since everything will be visually obvious.
+            </li>
+            <li>
+            <b>Editting an existing curve:</b><br />
+            If you have an existing curve from before and now you would like to tweak it, use the "Import JSON" button. Copy and paste the JSON (only) into the prompt and the curve will be restored.
+            </li>
+            <li>
+            <b>Validity of the curve:</b><br />
+            While there are some restriction applied to make sure the generate curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y values).
+            </li>
+          </ol>
+        </td>
         <td>
           <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
         </td>
@@ -127,7 +173,6 @@
       const ctx = canvas.getContext('2d');
       const imageUpload = document.getElementById('imageUpload');
       const clearBkg = document.getElementById('clearBkg');
-      const backgroundImg = new Image();
       const addCurve = document.getElementById('addCurve');
       const pointList = document.getElementById('pointList');
       const xCoordinate = document.getElementById('XCoordinate');
@@ -135,7 +180,7 @@
       const pythonCode = document.getElementById("python");
       const importJson = document.getElementById("importJson");
 
-      // Variable to keep track of the selected point
+      const backgroundImg = new Image();
       let selectedPoint = null;
       let selectedPointIndex = -1;
       let clickDown = false;
