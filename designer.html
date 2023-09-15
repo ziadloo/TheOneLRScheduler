@@ -62,7 +62,7 @@
   <body>
     <table style="margin: auto;">
       <tr>
-        <td rowspan="4" valign="top" style="padding-right: 40px; padding-top: 40px; width: 540px;">
+        <td rowspan="2" valign="top" style="padding-right: 40px; padding-top: 40px; width: 540px;">
           <big>How to use this designer:</big>
           <ol class="instructions">
             <li>
@@ -106,6 +106,10 @@
           </ol>
         </td>
         <td>
+
+    <table>
+      <tr>
+        <td>
           <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
         </td>
         <td align="right">
@@ -133,12 +137,16 @@
         </td>
       </tr>
       <tr>
-        <td align="center">
+        <td align="center" valign="bottom">
           <button id="importJson">Import JSON</button>
         </td>
       </tr>
+    </table>
+
+        </td>
+      </tr>
       <tr>
-        <td colspan="3">
+        <td valign="top">
           <div class="code-container">
             $ <span class="code" id="pip">pip install git+https://github.com/ziadloo/TheOneLRScheduler.git</span>
             <button class="copy-button" onclick="copyToClipboard('pip')">Copy</button>
@@ -160,12 +168,10 @@
               document.body.removeChild(textArea);
               alert("Code copied to clipboard!");
             }
-
           </script>
         </td>
       </tr>
     </table>
-
 
 
     <script>
