@@ -81,7 +81,7 @@
             </li>
             <li>
             <b>Copy the code and use it in your own:</b><br />
-            The Python code will always match the state of the curve as you manipulate it. You can also use the pip command to install the package first.
+            The Python code will always match the state of the curve as you manipulate it. You can also use the provided pip command to install the package.
             </li>
           </ol>
           <br />
@@ -93,7 +93,7 @@
             </li>
             <li>
             <b>Setting a background for the designer:</b><br />
-            Using this feature, if you have a screenshot of your previous training loss curves, you can set it as the background and try to design your LR scheduler to match it. This way you don't event need to pay attention to the X axis (steps) values since everything will be visually obvious.
+            Using this feature, if you have a screenshot of your previous training loss curves, you can set it as the background and try to design your LR scheduler accordingly. This way you don't event need to pay attention to the X axis (steps) values since everything will be visually obvious.
             </li>
             <li>
             <b>Editting an existing curve:</b><br />
@@ -101,7 +101,7 @@
             </li>
             <li>
             <b>Validity of the curve:</b><br />
-            While there are some restriction applied to make sure the generated curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y values).
+            While there are some restriction applied to make sure the generated curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y value).
             </li>
           </ol>
         </td>
@@ -396,8 +396,8 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawBackground();
         drawCurves();
-        drawPoints();
         drawAxis();
+        drawPoints();
         drawInterception();
       }
 
@@ -405,15 +405,16 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
       function drawPoints() {
         function _drawPoint(point) {
           if (point.selected) {
-            ctx.fillStyle = 'blue';
+            ctx.strokeStyle = '#002b59';
+            ctx.fillStyle = '#007bff';
           } else {
+            ctx.strokeStyle = 'black';
             ctx.fillStyle = 'white';
           }
           ctx.fillRect(point.x - 5, point.y - 5, 10, 10);
           ctx.strokeRect(point.x - 5, point.y - 5, 10, 10);
         }
 
-        ctx.strokeStyle = 'black';
         ctx.lineWidth = 2;
 
         points.forEach((item, index) => {
@@ -442,7 +443,7 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
           ctx.fillStyle = '#007bff';
           ctx.fill();
           ctx.lineWidth = 1;
-          ctx.strokeStyle = '#007bff';
+          ctx.strokeStyle = '#002b59';
           ctx.stroke();
 
           const realIntercept = canvasToReal(interception);
