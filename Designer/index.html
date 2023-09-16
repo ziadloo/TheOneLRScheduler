@@ -101,7 +101,7 @@
             </li>
             <li>
             <b>Validity of the curve:</b><br />
-            While there are some restriction applied to make sure the generate curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y values).
+            While there are some restriction applied to make sure the generated curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y values).
             </li>
           </ol>
         </td>
@@ -122,7 +122,7 @@
       </tr>
       <tr>
         <td valign="top" colspan="2" rowspan="2">
-          <canvas id="canvas" width="800" height="400" style="border: 1px solid black;"></canvas>
+          <canvas id="canvas" width="1000" height="600" style="border: 1px solid black;"></canvas>
         </td>
         <td valign="top">
           <ol id="pointList">
@@ -218,6 +218,7 @@
           selected: false
         }
       ];
+      let interception = null;
 
       function canvasToReal(point) {
         const canvasX = point.x - points[0].x;
@@ -397,6 +398,7 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         drawCurves();
         drawPoints();
         drawAxis();
+        drawInterception();
       }
 
       // Function to draw the control points
@@ -424,10 +426,95 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         });
       }
 
-      function drawAxis() {
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
+      function drawInterception() {
+        if (interception) {
+          ctx.beginPath();
+          ctx.moveTo(interception.x, 0);
+          ctx.lineTo(interception.x, canvas.height);
+          ctx.strokeStyle = '#007bff';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([15, 3, 3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
 
+          ctx.beginPath();
+          ctx.arc(interception.x, interception.y, 3, 0, 2 * Math.PI, false);
+          ctx.fillStyle = '#007bff';
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#007bff';
+          ctx.stroke();
+
+          const realIntercept = canvasToReal(interception);
+          let roundingFactor = Math.floor(Math.log10(initialLR));
+          if (roundingFactor >= 0 || roundingFactor === Number.NEGATIVE_INFINITY) {
+            roundingFactor = 100;
+          }
+          else {
+            roundingFactor = Math.pow(10, -roundingFactor+3)
+          }
+          drawBalloon(`Step: ${Math.round(realIntercept.x)}`, `LR: ${Math.round(realIntercept.y*roundingFactor)/roundingFactor}`, interception.x, interception.y);
+        }
+      }
+
+      function drawBalloon(text1, text2, x, y) {
+        // Define the box dimensions and offset
+        ctx.font = `18px courier`;
+        const txt1Size = ctx.measureText(text1);
+        const txt2Size = ctx.measureText(text2);
+        const boxWidth = Math.round((Math.max(txt1Size.width, txt2Size.width) + 25) / 25) * 25;
+        const boxHeight = 50;
+        const offset = 5;
+
+        // Determine the canvas dimensions
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        // Calculate the quadrant of the canvas based on the given coordinates
+        const isTopLeft = x <= canvasWidth / 2 && y <= canvasHeight / 2;
+        const isTopRight = x > canvasWidth / 2 && y <= canvasHeight / 2;
+        const isBottomLeft = x <= canvasWidth / 2 && y > canvasHeight / 2;
+        const isBottomRight = x > canvasWidth / 2 && y > canvasHeight / 2;
+
+        // Calculate the position of the box based on the quadrant
+        let boxX, boxY;
+        if (isTopLeft) {
+          boxX = x + offset;
+          boxY = y + offset;
+        } else if (isTopRight) {
+          boxX = x - boxWidth - offset;
+          boxY = y + offset;
+        } else if (isBottomLeft) {
+          boxX = x + offset;
+          boxY = y - boxHeight - offset;
+        } else if (isBottomRight) {
+          boxX = x - boxWidth - offset;
+          boxY = y - boxHeight - offset;
+        }
+
+        // Draw the rounded corner box
+        ctx.beginPath();
+        ctx.moveTo(boxX + 6, boxY);
+        ctx.lineTo(boxX + boxWidth - 6, boxY);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + 6);
+        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - 6);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - 6, boxY + boxHeight);
+        ctx.lineTo(boxX + 6, boxY + boxHeight);
+        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - 6);
+        ctx.lineTo(boxX, boxY + 6);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + 6, boxY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw the text inside the box
+        ctx.fillStyle = 'black';
+        ctx.fillText(text1, boxX + 10, boxY + 20);
+        ctx.fillText(text2, boxX + 10, boxY + 40);
+      }
+
+      function drawAxis() {
         const axises = [
           points[0],
           points[points.length - 1],
@@ -500,6 +587,37 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
       }
 
+      function cubicBezierInterceptY(targetX, p0, p1, p2, p3, tolerance = 1e-2) {
+        let t0 = 0;
+        let t1 = 1;
+
+        while (t0 < t1) {
+          let t = (t0 + t1) / 2;
+          let x = (1 - t) ** 3 * p0.x + 3 * (1 - t) ** 2 * t * p1.x + 3 * (1 - t) * t ** 2 * p2.x + t ** 3 * p3.x;
+
+          if (Math.abs(x - targetX) < tolerance) {
+            return (1 - t) ** 3 * p0.y + 3 * (1 - t) ** 2 * t * p1.y + 3 * (1 - t) * t ** 2 * p2.y + t ** 3 * p3.y;
+          } else if (x < targetX) {
+            t0 = t;
+          } else {
+            t1 = t;
+          }
+        }
+
+        // If we didn't converge, return undefined or handle as needed.
+        return undefined;
+      }
+
+      function linearInterceptY(x, p0, p1) {
+        // Calculate the slope of the line
+        const slope = (p1.y - p0.y) / (p1.x - p0.x);
+
+        // Calculate the Y-coordinate using the equation of a line
+        const y = p0.y + slope * (x - p0.x);
+
+        return y;
+      }
+
       // Initial draw
       syncUIWithPoints();
       drawAll();
@@ -548,10 +666,10 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
       });
 
       canvas.addEventListener('mousemove', (e) => {
+        const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+        const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+        interception = null;
         if (clickDown && selectedPoint !== null) {
-          const mouseX = e.clientX - canvas.getBoundingClientRect().left;
-          const mouseY = e.clientY - canvas.getBoundingClientRect().top;
-
           if (selectedPointIndex != -1) {
             let prevPoint = null;
             for (let i = selectedPointIndex; i > 0; i--) {
@@ -588,10 +706,36 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             selectedPoint.x = mouseX;
             selectedPoint.y = mouseY;
           }
-
-          drawAll();
-          showSelectedPointCoordinate();
         }
+        else {
+          if (points[0].x <= mouseX && mouseX <= points[points.length-1].x) {
+            let leftIndex = -1;
+            let rightIndex = points.length-1;
+            for (let i in points) {
+              if (!points[i]["control1"] && !points[i]["control2"]) {
+                if (points[i].x <= mouseX) {
+                  leftIndex = parseInt(i);
+                }
+                else {
+                  rightIndex = parseInt(i);
+                  break;
+                }
+              }
+            }
+
+            let interceptY = 0;
+            if (leftIndex + 1 === rightIndex) {
+              interceptY = linearInterceptY(mouseX, points[leftIndex], points[rightIndex]);
+              interception = {x: mouseX, y: interceptY};
+            }
+            else if (leftIndex + 2 === rightIndex) {
+              interceptY = cubicBezierInterceptY(mouseX, points[leftIndex], points[leftIndex+1].control1, points[leftIndex+1].control2, points[rightIndex]);
+              interception = {x: mouseX, y: interceptY};
+            }
+          }
+        }
+        drawAll();
+        showSelectedPointCoordinate();
       });
 
       canvas.addEventListener('mouseup', () => {

@@ -50,18 +50,15 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
 
 
     def _bezier_curve(self, coordinates):
-        # Extract X and Y coordinates separately
         X, Y = zip(*coordinates)
         n = len(coordinates) - 1
 
-        # Generate X values from the minimum X to the maximum X
         x_values = list(range(min(X), max(X) + 1))
         result = []
 
         for x in x_values:
             Y_val = 0
             for i, (xi, yi) in enumerate(coordinates):
-                #binomial_coeff = np.math.comb(n, i)
                 binomial_coeff = self._binomial_coefficient(n, i)
                 Y_val += binomial_coeff * (1 - (x - min(X)) / (max(X) - min(X))) ** (n - i) * ((x - min(X)) / (max(X) - min(X))) ** i * yi
 
@@ -71,7 +68,6 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
 
 
     def _line_curve(self, start, end):
-        # Ensure the starting point has x=0 and the ending point has x=max_x
         X, Y = zip(start, end)
         slope = (end[1] - start[1]) / (end[0] - start[0])
         x_values = list(range(min(X), max(X) + 1))
