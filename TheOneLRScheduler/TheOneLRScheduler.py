@@ -7,69 +7,73 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
         for i in range(1, len(points)):
             if "control1" in points[i]:
                 continue
-            if "control1" in points[i-1]:
-                curves.append(self._bezier_curve([(points[i-2]["x"], points[i-2]["y"]),
-                                                  (points[i-1]["control1"]["x"], points[i-1]["control1"]["y"]),
-                                                  (points[i-1]["control2"]["x"], points[i-1]["control2"]["y"]),
-                                                  (points[i]["x"], points[i]["y"])]))
+            elif "control1" in points[i-1]:
+                curves.append({
+                        "type": "bezier",
+                        "from": points[i-2],
+                        "control1": points[i-1]["control1"],
+                        "control2": points[i-1]["control2"],
+                        "to": points[i],
+                    })
             else:
-                p1 = (points[i-1]["x"], points[i-1]["y"])
-                p2 = (points[i]["x"], points[i]["y"])
-                print(p1, p2)
-                if p1[0] != p2[0]:
-                    curves.append(self._line_curve(p1, p2))
-        samples = []
-        for c in curves:
-            if len(c) == 0:
-                continue
-            elif len(samples) == 0:
-                samples = samples + [p[1] for p in c]
-            elif c[0][0] == len(samples)-1:
-                samples[-1] = min(samples[-1], c[0][1])
-                samples = samples + [p[1] for p in c[1:]]
-            else:
-                samples = samples + [p[1] for p in c]
+                if points[i-1]["x"] != points[i]["x"]:
+                    curves.append({
+                            "type": "line",
+                            "from": points[i-1],
+                            "to": points[i],
+                        })
 
-        samples = [s/samples[0] for s in samples]
+        scaling_factor = points[0]["y"]
         def _get_sample(i):
-            if i < 0:
-                return samples[0]
-            if i < len(samples):
-                return samples[i]
+            def _bezier_curve(c, x, tolerance=1e-6):
+                p0 = (c["from"]["x"], c["from"]["y"])
+                p1 = (c["control1"]["x"], c["control1"]["y"])
+                p2 = (c["control2"]["x"], c["control2"]["y"])
+                p3 = (c["to"]["x"], c["to"]["y"])
+
+                t_low = 0.0
+                t_high = 1.0
+                
+                while t_high - t_low > tolerance:
+                    t_mid = (t_low + t_high) / 2
+                    
+                    x_mid = ((1 - t_mid) ** 3) * p0[0] + 3 * ((1 - t_mid) ** 2) * t_mid * p1[0] + 3 * (1 - t_mid) * (t_mid ** 2) * p2[0] + (t_mid ** 3) * p3[0]
+                    
+                    if x_mid < x:
+                        t_low = t_mid
+                    else:
+                        t_high = t_mid
+                
+                t = (t_low + t_high) / 2
+                
+                y = ((1 - t) ** 3) * p0[1] + 3 * ((1 - t) ** 2) * t * p1[1] + 3 * (1 - t) * (t ** 2) * p2[1] + (t ** 3) * p3[1]
+                
+                return y
+
+            def _line_curve(c, x):
+                start = (c["from"]["x"], c["from"]["y"])
+                end = (c["to"]["x"], c["to"]["y"])
+                X, Y = zip(start, end)
+                slope = (end[1] - start[1]) / (end[0] - start[0])
+                return start[1] + slope * (x-start[0])
+
+            if i <= 0:
+                return curves[0]["from"]["y"] / scaling_factor
+            elif i >= curves[-1]["to"]["x"]:
+                return curves[-1]["to"]["y"] / scaling_factor
+
+            left = 0
+            right = len(curves)-1
+            while left < right:
+                mid = left + (right - left) // 2
+                if curves[mid]["to"]["x"] < i:
+                    left = mid + 1
+                else:
+                    right = mid
+
+            if curves[left]["type"] == "line":
+                return _line_curve(curves[left], i) / scaling_factor
             else:
-                return samples[-1]
+                return _bezier_curve(curves[left], i) / scaling_factor
+
         super().__init__(optimizer, _get_sample)
-
-
-    def _binomial_coefficient(self, n, k):
-        # Compute binomial coefficient C(n, k)
-        result = 1
-        for i in range(1, k + 1):
-            result *= (n - i + 1) / i
-        return result
-
-
-    def _bezier_curve(self, coordinates):
-        X, Y = zip(*coordinates)
-        n = len(coordinates) - 1
-
-        x_values = list(range(min(X), max(X) + 1))
-        result = []
-
-        for x in x_values:
-            Y_val = 0
-            for i, (xi, yi) in enumerate(coordinates):
-                binomial_coeff = self._binomial_coefficient(n, i)
-                Y_val += binomial_coeff * (1 - (x - min(X)) / (max(X) - min(X))) ** (n - i) * ((x - min(X)) / (max(X) - min(X))) ** i * yi
-
-            result.append((x, Y_val))
-
-        return result
-
-
-    def _line_curve(self, start, end):
-        X, Y = zip(start, end)
-        slope = (end[1] - start[1]) / (end[0] - start[0])
-        x_values = list(range(min(X), max(X) + 1))
-        result = [(x, start[1] + slope * (x-start[0])) for x in x_values]
-        return result
