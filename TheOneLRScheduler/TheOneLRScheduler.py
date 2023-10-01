@@ -23,8 +23,8 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
                             "y": float(points[i-1]["control2"]["y"]),
                         },
                         "to": {
-                            "x": float(points[i-1]["x"]),
-                            "y": float(points[i-1]["y"]),
+                            "x": float(points[i]["x"]),
+                            "y": float(points[i]["y"]),
                         },
                     })
             else:
