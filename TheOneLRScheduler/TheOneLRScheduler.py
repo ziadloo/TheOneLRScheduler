@@ -10,20 +10,38 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
             elif "control1" in points[i-1]:
                 curves.append({
                         "type": "bezier",
-                        "from": points[i-2],
-                        "control1": points[i-1]["control1"],
-                        "control2": points[i-1]["control2"],
-                        "to": points[i],
+                        "from": {
+                            "x": float(points[i-2]["x"]),
+                            "y": float(points[i-2]["y"]),
+                        },
+                        "control1": {
+                            "x": float(points[i-1]["control1"]["x"]),
+                            "y": float(points[i-1]["control1"]["y"]),
+                        },
+                        "control2": {
+                            "x": float(points[i-1]["control2"]["x"]),
+                            "y": float(points[i-1]["control2"]["y"]),
+                        },
+                        "to": {
+                            "x": float(points[i-1]["x"]),
+                            "y": float(points[i-1]["y"]),
+                        },
                     })
             else:
                 if points[i-1]["x"] != points[i]["x"]:
                     curves.append({
                             "type": "line",
-                            "from": points[i-1],
-                            "to": points[i],
+                            "from": {
+                                "x": float(points[i-1]["x"]),
+                                "y": float(points[i-1]["y"]),
+                            },
+                            "to": {
+                                "x": float(points[i]["x"]),
+                                "y": float(points[i]["y"]),
+                            },
                         })
 
-        scaling_factor = points[0]["y"]
+        scaling_factor = float(points[0]["y"])
         def _get_sample(i):
             def _bezier_curve(c, x, tolerance=1e-6):
                 p0 = (c["from"]["x"], c["from"]["y"])

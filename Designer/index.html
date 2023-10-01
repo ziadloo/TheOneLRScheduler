@@ -1,623 +1,512 @@
 <!DOCTYPE html>
 <html>
 
-  <head>
-    <title>The One Learning Rate Scheduler Visual Designer</title>
-    <style>
-      ul {
-        padding: 0;
-        /* Remove padding */
-        margin: 0;
-        /* Remove margins */
-      }
+<head>
+  <title>The One Learning Rate Scheduler Visual Designer</title>
+  <style>
+    ul {
+      padding: 0;
+      /* Remove padding */
+      margin: 0;
+      /* Remove margins */
+    }
 
-      .remove-btn {
-        margin-left: 10px;
-      }
+    .remove-btn {
+      margin-left: 10px;
+    }
 
-      #addCurve {
-        margin-bottom: 10px;
-      }
+    #addCurve {
+      margin-bottom: 10px;
+    }
 
-      .code-container {
-        position: relative;
-        display: inline-block;
-        padding: 10px;
-        border: 1px solid #ccc;
-        background-color: #f9f9f9;
-        font-family: monospace;
-        width: 100%;
-        border-radius: 5px;
-        /* Add rounded corners */
-        margin-bottom: 10px;
-      }
+    .code-container {
+      position: relative;
+      display: inline-block;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      width: 100%;
+      border-radius: 5px;
+      /* Add rounded corners */
+      margin-bottom: 10px;
+    }
 
-      .code {
-        font-family: monospace;
-        white-space: pre;
-        width: 100%;
-        border-radius: 5px;
-        /* Add rounded corners */
-      }
+    .code {
+      font-family: monospace;
+      white-space: pre;
+      width: 100%;
+      border-radius: 5px;
+      /* Add rounded corners */
+    }
 
-      .copy-button {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        padding: 5px 10px;
-        background-color: #007bff;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        border-radius: 5px;
-        /* Add rounded corners */
-      }
+    .copy-button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 5px 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      /* Add rounded corners */
+    }
 
-      .instructions LI {
-        margin-top: 20px;
-      }
-    </style>
-  </head>
+    .instructions LI {
+      margin-top: 20px;
+    }
+  </style>
+  <script src="./decimal-v10.4.3.js"></script>
 
-  <body>
-    <table style="margin: auto;">
-      <tr>
-        <td rowspan="2" valign="top" style="padding-right: 40px; padding-top: 40px; width: 540px;">
-          <big>How to use this designer:</big>
-          <ol class="instructions">
-            <li>
-            <b>Set the initial learning rate:</b><br />
-            Select the left-most curve handler (square box) and then set the initial learning rate in the "LR" text box (found in the top-right corner).
-            </li>
-            <li>
-            <b>Set the number of steps you want to train your model:</b><br />
-            Select the right-most curve handler (square box) and then set the number of steps in the "step" text box (found on the left side of "LR" text box).<br />
-            The steps here refers to the number of times you'll be calling: <pre>scheduler.step()</pre>
-            </li>
-            <li>
-            <b>Manipulate the curve as you like by adding new parts and adjusting them using their handlers:</b><br />
-            You can add as many new parts as you like to the curve using the "Add curve" button.</br >
-            Each curve could be either a bezier or a straight line which you can select by changing their respective dropdown menu.
-            </li>
-            <li>
-            <b>Copy the code and use it in your own:</b><br />
-            The Python code will always match the state of the curve as you manipulate it. You can also use the provided pip command to install the package.
-            </li>
-          </ol>
-          <br />
-          <big>Notes and other features:</big>
-          <ol class="instructions">
-            <li>
-            <b>The curve always ends in learning rate = 0:</b><br />
-            The design of this tool mandates to end the curve in a point with LR equals to zero. If this is something that does not work for you, you can add a new line to the end of the curve and with step value the same as the last point but with a learning rate higher than zero.
-            </li>
-            <li>
-            <b>Setting a background for the designer:</b><br />
-            Using this feature, if you have a screenshot of your previous training loss curves, you can set it as the background and try to design your LR scheduler accordingly. This way you don't event need to pay attention to the X axis (steps) values since everything will be visually obvious.
-            </li>
-            <li>
-            <b>Editting an existing curve:</b><br />
-            If you have an existing curve from before and now you would like to tweak it, use the "Import JSON" button. Copy and paste the JSON (only) into the prompt and the curve will be restored.
-            </li>
-            <li>
-            <b>Validity of the curve:</b><br />
-            While there are some restriction applied to make sure the generated curve is a valid one (like you cannot move an endpoint handler past its previous or next one), but that does not mean that all the curves generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let the curve to go backwards (there shoudn't be a single X with more than one Y value).
-            </li>
-          </ol>
-        </td>
-        <td>
+  <script>
+    function canvasToReal(point) {
+      const canvasX = new Decimal(point.x - points[0].x);
+      const canvasY = new Decimal(points[points.length - 1].y - point.y);
 
-    <table>
-      <tr>
-        <td>
-          <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
-        </td>
-        <td align="right">
-          step: <input type="text" id="XCoordinate" size="5" disabled />
-          LR: <input type="text" id="YCoordinate" size="5" disabled />
-        </td>
-        <td align="center">
-          <button id="addCurve">Add curve</button>
-        </td>
-      </tr>
-      <tr>
-        <td valign="top" colspan="2" rowspan="2">
-          <canvas id="canvas" width="1000" height="600" style="border: 1px solid black;"></canvas>
-        </td>
-        <td valign="top">
-          <ol id="pointList">
-            <li>
-              <select>
-                <option>Line</option>
-                <option>Bezier</option>
-              </select>
-              <button>x</button>
-            </li>
-          </ol>
-        </td>
-      </tr>
-      <tr>
-        <td align="center" valign="bottom">
-          <button id="importJson">Import JSON</button>
-        </td>
-      </tr>
-    </table>
+      const canvasToRealRatio_X = new Decimal(numberOfSteps).dividedBy(points[points.length - 1].x - points[0].x);
+      const canvasToRealRatio_Y = new Decimal(initialLR).dividedBy(points[points.length - 1].y - points[0].y);
 
-        </td>
-      </tr>
-      <tr>
-        <td valign="top">
-          <div class="code-container">
-            $ <span class="code" id="pip">pip install git+https://github.com/ziadloo/TheOneLRScheduler.git</span>
-            <button class="copy-button" onclick="copyToClipboard('pip')">Copy</button>
-          </div>
-          <br />
-          <div class="code-container">
-            <span class="code" id="python"></span>
-            <button class="copy-button" onclick="copyToClipboard('python')">Copy</button>
-          </div>
+      return {
+        x: canvasX.times(canvasToRealRatio_X).toDecimalPlaces(10),
+        y: canvasY.times(canvasToRealRatio_Y).toDecimalPlaces(10),
+      };
+    }
 
-          <script>
-            function copyToClipboard(codeBoxId) {
-              const codeText = document.getElementById(codeBoxId);
-              const textArea = document.createElement("textarea");
-              textArea.value = codeText.textContent;
-              document.body.appendChild(textArea);
-              textArea.select();
-              document.execCommand("copy");
-              document.body.removeChild(textArea);
-              alert("Code copied to clipboard!");
-            }
-          </script>
-        </td>
-      </tr>
-    </table>
+    function realToCanvas(point) {
+      const canvasToRealRatio_X = new Decimal(numberOfSteps).dividedBy(points[points.length - 1].x - points[0].x);
+      const canvasToRealRatio_Y = new Decimal(initialLR).dividedBy(points[points.length - 1].y - points[0].y);
 
+      return {
+        x: new Decimal(point.x).dividedBy(canvasToRealRatio_X).plus(points[0].x).toNumber(),
+        y: new Decimal(points[points.length - 1].y).minus(new Decimal(point.y).dividedBy(canvasToRealRatio_Y)).toNumber(),
+      };
+    }
 
-    <script>
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
-      const imageUpload = document.getElementById('imageUpload');
-      const clearBkg = document.getElementById('clearBkg');
-      const addCurve = document.getElementById('addCurve');
-      const pointList = document.getElementById('pointList');
-      const xCoordinate = document.getElementById('XCoordinate');
-      const yCoordinate = document.getElementById('YCoordinate');
-      const pythonCode = document.getElementById("python");
-      const importJson = document.getElementById("importJson");
-
-      const backgroundImg = new Image();
-      let selectedPoint = null;
-      let selectedPointIndex = -1;
-      let clickDown = false;
-
-      let numberOfSteps = 1000;
-      let initialLR = 0.1;
-
-      // Control points
-      let points = [{
-          x: canvas.width / 16,
-          y: canvas.height / 16,
-          selected: false
-        },
-        {
-          control1: {
-            x: canvas.width / 16 * 7.5,
-            y: canvas.height / 16,
-            selected: false
-          },
-          control2: {
-            x: canvas.width / 16 * 7.5,
-            y: canvas.height / 16 * 15,
-            selected: false
-          }
-        },
-        {
-          x: canvas.width / 16 * 15,
-          y: canvas.height / 16 * 15,
-          selected: false
+    function populatePython() {
+      const realPoints = [];
+      for (let i = 0; i < points.length; i++) {
+        if (points[i].control1 && points[i].control2) {
+          realPoints.push({
+            control1: canvasToReal(points[i].control1),
+            control2: canvasToReal(points[i].control2),
+          });
+        } else {
+          realPoints.push(canvasToReal(points[i]));
         }
-      ];
-      let interception = null;
-
-      function canvasToReal(point) {
-        const canvasX = point.x - points[0].x;
-        const canvasY = -(point.y - points[points.length - 1].y);
-
-        const canvasToRealRatio_X = numberOfSteps / (points[points.length - 1].x - points[0].x);
-        const canvasToRealRatio_Y = initialLR / (points[points.length - 1].y - points[0].y);
-
-        return {
-          x: parseInt(canvasX * canvasToRealRatio_X),
-          y: Math.round((canvasY * canvasToRealRatio_Y + Number.EPSILON) * 10000) / 10000,
-        };
       }
 
-      function realToCanvas(point) {
-        const canvasToRealRatio_X = numberOfSteps / (points[points.length - 1].x - points[0].x);
-        const canvasToRealRatio_Y = initialLR / (points[points.length - 1].y - points[0].y);
+      realPoints[realPoints.length - 1].x = numberOfSteps;
+      realPoints[0].y = initialLR;
 
-        return {
-          x: parseInt(point.x / canvasToRealRatio_X) + points[0].x,
-          y: points[points.length - 1].y - parseInt(point.y / canvasToRealRatio_Y),
-        };
-      }
-
-      function populatePython() {
-        const realPoints = [];
-        for (let i = 0; i < points.length; i++) {
-          if (points[i].control1 && points[i].control2) {
-            realPoints.push({
-              control1: canvasToReal(points[i].control1),
-              control2: canvasToReal(points[i].control2),
-            });
-          } else {
-            realPoints.push(canvasToReal(points[i]));
-          }
-        }
-
-        realPoints[realPoints.length - 1].x = numberOfSteps;
-        realPoints[0].y = initialLR;
-
-        pythonCode.innerHTML = `import torch
+      pythonCode.innerHTML = `import torch
 from TheOneLRScheduler import TheOneLRScheduler
 
 points = ${JSON.stringify(realPoints, null, 4)}
 
 optimizer = torch.optim.SGD(model.parameters(), lr=${initialLR})
 scheduler = TheOneLRScheduler(optimizer, points)`;
-      }
+    }
 
-      function showSelectedPointCoordinate() {
-        if (selectedPoint) {
-          if (selectedPointIndex !== 0 && selectedPointIndex !== points.length - 1) {
-            const realCoordinate = canvasToReal(selectedPoint);
-            xCoordinate.disabled = false;
-            xCoordinate.value = realCoordinate.x;
-            yCoordinate.disabled = false;
-            yCoordinate.value = realCoordinate.y;
-          } else if (selectedPointIndex === 0) {
-            xCoordinate.disabled = true;
-            xCoordinate.value = 0;
-            yCoordinate.disabled = false;
-            yCoordinate.value = initialLR;
-          } else {
-            xCoordinate.disabled = false;
-            xCoordinate.value = numberOfSteps;
-            yCoordinate.disabled = true;
-            yCoordinate.value = 0;
-          }
-        } else {
+    function showSelectedPointCoordinate() {
+      if (selectedPoint) {
+        if (selectedPointIndex !== 0 && selectedPointIndex !== points.length - 1) {
+          const realCoordinate = canvasToReal(selectedPoint);
+          xCoordinate.disabled = false;
+          xCoordinate.value = realCoordinate.x.toFixed();
+          yCoordinate.disabled = false;
+          yCoordinate.value = realCoordinate.y.toFixed();
+        } else if (selectedPointIndex === 0) {
           xCoordinate.disabled = true;
+          xCoordinate.value = 0;
+          yCoordinate.disabled = false;
+          yCoordinate.value = initialLR.toFixed();
+        } else {
+          xCoordinate.disabled = false;
+          xCoordinate.value = numberOfSteps.toFixed();
           yCoordinate.disabled = true;
-          xCoordinate.value = "";
-          yCoordinate.value = "";
+          yCoordinate.value = 0;
         }
-
-        populatePython();
+      } else {
+        xCoordinate.disabled = true;
+        yCoordinate.disabled = true;
+        xCoordinate.value = "";
+        yCoordinate.value = "";
       }
 
-      function syncUIWithPoints() {
-        function _deleteLine(index) {
-          points.splice(index, 1);
-          syncUIWithPoints();
-          drawAll();
-        }
+      populatePython();
+    }
 
-        function _deleteBezier(index) {
-          points.splice(index, 2);
-          syncUIWithPoints();
-          drawAll();
-        }
+    function syncUIWithPoints() {
+      function _deleteLine(index) {
+        points.splice(index, 1);
+        syncUIWithPoints();
+        drawAll();
+      }
 
-        function _changeToLine(index) {
-          points.splice(index + 1, 1);
-          syncUIWithPoints();
-          drawAll();
-        }
+      function _deleteBezier(index) {
+        points.splice(index, 2);
+        syncUIWithPoints();
+        drawAll();
+      }
 
-        function _changeToBezier(index) {
-          const controllers = {
-            control1: {
-              x: parseInt((points[index].x + points[index + 1].x) / 2),
-              y: points[index].y,
-              selected: false
-            },
-            control2: {
-              x: parseInt((points[index].x + points[index + 1].x) / 2),
-              y: points[index + 1].y,
-              selected: false
-            }
-          };
-          points.splice(index + 1, 0, controllers);
-          syncUIWithPoints();
-          drawAll();
-        }
+      function _changeToLine(index) {
+        points.splice(index + 1, 1);
+        syncUIWithPoints();
+        drawAll();
+      }
 
-        function _addCurve(index, type, text) {
-          const select = document.createElement("select");
-          const option1 = document.createElement("option");
-          option1.value = "bezier";
-          option1.text = "Bezier";
-          select.appendChild(option1);
-          const option2 = document.createElement("option");
-          option2.value = "line";
-          option2.text = "Line";
-          select.appendChild(option2);
-
-          if (type === "bezier") {
-            option1.selected = true;
-          } else {
-            option2.selected = true;
+      function _changeToBezier(index) {
+        const controllers = {
+          control1: {
+            x: parseInt((points[index].x + points[index + 1].x) / 2),
+            y: points[index].y,
+            selected: false
+          },
+          control2: {
+            x: parseInt((points[index].x + points[index + 1].x) / 2),
+            y: points[index + 1].y,
+            selected: false
           }
-          const li = document.createElement("li");
-          li.appendChild(select);
+        };
+        points.splice(index + 1, 0, controllers);
+        syncUIWithPoints();
+        drawAll();
+      }
 
-          if (index != 0) {
-            const button = document.createElement("button");
-            button.innerHTML = "x";
-            button.className += ' remove-btn';
-            li.appendChild(button);
-            button.addEventListener('click', () => {
-              if (type === "line") {
-                _deleteLine(index);
-              } else {
-                _deleteBezier(index);
-              }
-            });
-          }
+      function _addCurve(index, type, text) {
+        const select = document.createElement("select");
+        const option1 = document.createElement("option");
+        option1.value = "bezier";
+        option1.text = "Bezier";
+        select.appendChild(option1);
+        const option2 = document.createElement("option");
+        option2.value = "line";
+        option2.text = "Line";
+        select.appendChild(option2);
 
-          select.addEventListener('change', () => {
+        if (type === "bezier") {
+          option1.selected = true;
+        } else {
+          option2.selected = true;
+        }
+        const li = document.createElement("li");
+        li.appendChild(select);
+
+        if (index != 0) {
+          const button = document.createElement("button");
+          button.innerHTML = "x";
+          button.className += ' remove-btn';
+          li.appendChild(button);
+          button.addEventListener('click', () => {
             if (type === "line") {
-              _changeToBezier(index);
+              _deleteLine(index);
             } else {
-              _changeToLine(index);
+              _deleteBezier(index);
             }
           });
-
-          pointList.appendChild(li);
         }
 
-        pointList.innerHTML = "";
-
-        for (let i = 0; i < points.length - 1; i++) {
-          if (points[i + 1].control1 && points[i + 1].control2) {
-            _addCurve(i, "bezier", "Bezier");
-            i++;
+        select.addEventListener('change', () => {
+          if (type === "line") {
+            _changeToBezier(index);
           } else {
-            _addCurve(i, "line", "Line");
-          }
-        }
-
-        populatePython();
-      }
-
-      function drawAll() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBackground();
-        drawCurves();
-        drawAxis();
-        drawPoints();
-        drawInterception();
-      }
-
-      // Function to draw the control points
-      function drawPoints() {
-        function _drawPoint(point) {
-          if (point.selected) {
-            ctx.strokeStyle = '#002b59';
-            ctx.fillStyle = '#007bff';
-          } else {
-            ctx.strokeStyle = 'black';
-            ctx.fillStyle = 'white';
-          }
-          ctx.fillRect(point.x - 5, point.y - 5, 10, 10);
-          ctx.strokeRect(point.x - 5, point.y - 5, 10, 10);
-        }
-
-        ctx.lineWidth = 2;
-
-        points.forEach((item, index) => {
-          if (item.control1 && item.control2) {
-            _drawPoint(item.control1);
-            _drawPoint(item.control2);
-          } else {
-            _drawPoint(item);
+            _changeToLine(index);
           }
         });
+
+        pointList.appendChild(li);
       }
 
-      function drawInterception() {
-        if (interception) {
-          ctx.beginPath();
-          ctx.moveTo(interception.x, 0);
-          ctx.lineTo(interception.x, canvas.height);
-          ctx.strokeStyle = '#007bff';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([15, 3, 3, 3]);
-          ctx.stroke();
-          ctx.setLineDash([]);
+      pointList.innerHTML = "";
 
-          ctx.beginPath();
-          ctx.arc(interception.x, interception.y, 3, 0, 2 * Math.PI, false);
-          ctx.fillStyle = '#007bff';
-          ctx.fill();
-          ctx.lineWidth = 1;
+      for (let i = 0; i < points.length - 1; i++) {
+        if (points[i + 1].control1 && points[i + 1].control2) {
+          _addCurve(i, "bezier", "Bezier");
+          i++;
+        } else {
+          _addCurve(i, "line", "Line");
+        }
+      }
+
+      populatePython();
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawCurves();
+      drawAxis();
+      drawPoints();
+      drawInterception();
+    }
+
+    // Function to draw the control points
+    function drawPoints() {
+      function _drawPoint(point) {
+        if (point.selected) {
           ctx.strokeStyle = '#002b59';
-          ctx.stroke();
-
-          const realIntercept = canvasToReal(interception);
-          let roundingFactor = Math.floor(Math.log10(initialLR));
-          if (roundingFactor >= 0 || roundingFactor === Number.NEGATIVE_INFINITY) {
-            roundingFactor = 100;
-          }
-          else {
-            roundingFactor = Math.pow(10, -roundingFactor+3)
-          }
-          drawBalloon(`Step: ${Math.round(realIntercept.x)}`, `LR: ${Math.round(realIntercept.y*roundingFactor)/roundingFactor}`, interception.x, interception.y);
+          ctx.fillStyle = '#007bff';
+        } else {
+          ctx.strokeStyle = 'black';
+          ctx.fillStyle = 'white';
         }
+        ctx.fillRect(point.x - 5, point.y - 5, 10, 10);
+        ctx.strokeRect(point.x - 5, point.y - 5, 10, 10);
       }
 
-      function drawBalloon(text1, text2, x, y) {
-        // Define the box dimensions and offset
-        ctx.font = `18px courier`;
-        const txt1Size = ctx.measureText(text1);
-        const txt2Size = ctx.measureText(text2);
-        const boxWidth = Math.round((Math.max(txt1Size.width, txt2Size.width) + 25) / 25) * 25;
-        const boxHeight = 50;
-        const offset = 5;
+      ctx.lineWidth = 2;
 
-        // Determine the canvas dimensions
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-
-        // Calculate the quadrant of the canvas based on the given coordinates
-        const isTopLeft = x <= canvasWidth / 2 && y <= canvasHeight / 2;
-        const isTopRight = x > canvasWidth / 2 && y <= canvasHeight / 2;
-        const isBottomLeft = x <= canvasWidth / 2 && y > canvasHeight / 2;
-        const isBottomRight = x > canvasWidth / 2 && y > canvasHeight / 2;
-
-        // Calculate the position of the box based on the quadrant
-        let boxX, boxY;
-        if (isTopLeft) {
-          boxX = x + offset;
-          boxY = y + offset;
-        } else if (isTopRight) {
-          boxX = x - boxWidth - offset;
-          boxY = y + offset;
-        } else if (isBottomLeft) {
-          boxX = x + offset;
-          boxY = y - boxHeight - offset;
-        } else if (isBottomRight) {
-          boxX = x - boxWidth - offset;
-          boxY = y - boxHeight - offset;
+      points.forEach((item, index) => {
+        if (item.control1 && item.control2) {
+          _drawPoint(item.control1);
+          _drawPoint(item.control2);
+        } else {
+          _drawPoint(item);
         }
+      });
+    }
 
-        // Draw the rounded corner box
+    function drawInterception() {
+      if (interception) {
         ctx.beginPath();
-        ctx.moveTo(boxX + 6, boxY);
-        ctx.lineTo(boxX + boxWidth - 6, boxY);
-        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + 6);
-        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - 6);
-        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - 6, boxY + boxHeight);
-        ctx.lineTo(boxX + 6, boxY + boxHeight);
-        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - 6);
-        ctx.lineTo(boxX, boxY + 6);
-        ctx.quadraticCurveTo(boxX, boxY, boxX + 6, boxY);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.moveTo(interception.x, 0);
+        ctx.lineTo(interception.x, canvas.height);
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([15, 3, 3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.arc(interception.x, interception.y, 3, 0, 2 * Math.PI, false);
+        ctx.fillStyle = '#007bff';
         ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#002b59';
         ctx.stroke();
 
-        // Draw the text inside the box
-        ctx.fillStyle = 'black';
-        ctx.fillText(text1, boxX + 10, boxY + 20);
-        ctx.fillText(text2, boxX + 10, boxY + 40);
+        const realIntercept = canvasToReal(interception);
+        /*
+        let roundingFactor = new Decimal(initialLR).log().floor();
+        if (roundingFactor.gte(0)) { // || roundingFactor === Number.NEGATIVE_INFINITY
+          roundingFactor = 100;
+        }
+        else {
+          roundingFactor = Math.pow(10, -roundingFactor+3)
+        }
+        drawBalloon(`Step: ${Math.round(realIntercept.x.toNumber())}`, `LR: ${Math.round(realIntercept.y*roundingFactor)/roundingFactor}`, interception.x, interception.y);
+        */
+        drawBalloon(`Step: ${Math.round(realIntercept.x.toNumber())}`, `LR: ${realIntercept.y.toExponential(3)}`, interception.x, interception.y);
+      }
+    }
+
+    function drawBalloon(text1, text2, x, y) {
+      // Define the box dimensions and offset
+      ctx.font = `18px courier`;
+      const txt1Size = ctx.measureText(text1);
+      const txt2Size = ctx.measureText(text2);
+      const boxWidth = Math.round((Math.max(txt1Size.width, txt2Size.width) + 25) / 25) * 25;
+      const boxHeight = 50;
+      const offset = 5;
+
+      // Determine the canvas dimensions
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+
+      // Calculate the quadrant of the canvas based on the given coordinates
+      const isTopLeft = x <= canvasWidth / 2 && y <= canvasHeight / 2;
+      const isTopRight = x > canvasWidth / 2 && y <= canvasHeight / 2;
+      const isBottomLeft = x <= canvasWidth / 2 && y > canvasHeight / 2;
+      const isBottomRight = x > canvasWidth / 2 && y > canvasHeight / 2;
+
+      // Calculate the position of the box based on the quadrant
+      let boxX, boxY;
+      if (isTopLeft) {
+        boxX = x + offset;
+        boxY = y + offset;
+      } else if (isTopRight) {
+        boxX = x - boxWidth - offset;
+        boxY = y + offset;
+      } else if (isBottomLeft) {
+        boxX = x + offset;
+        boxY = y - boxHeight - offset;
+      } else if (isBottomRight) {
+        boxX = x - boxWidth - offset;
+        boxY = y - boxHeight - offset;
       }
 
-      function drawAxis() {
-        const axises = [
-          points[0],
-          points[points.length - 1],
-        ];
+      // Draw the rounded corner box
+      ctx.beginPath();
+      ctx.moveTo(boxX + 6, boxY);
+      ctx.lineTo(boxX + boxWidth - 6, boxY);
+      ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + 6);
+      ctx.lineTo(boxX + boxWidth, boxY + boxHeight - 6);
+      ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - 6, boxY + boxHeight);
+      ctx.lineTo(boxX + 6, boxY + boxHeight);
+      ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - 6);
+      ctx.lineTo(boxX, boxY + 6);
+      ctx.quadraticCurveTo(boxX, boxY, boxX + 6, boxY);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.stroke();
 
+      // Draw the text inside the box
+      ctx.fillStyle = 'black';
+      ctx.fillText(text1, boxX + 10, boxY + 20);
+      ctx.fillText(text2, boxX + 10, boxY + 40);
+    }
+
+    function drawAxis() {
+      const axises = [
+        points[0],
+        points[points.length - 1],
+      ];
+
+      ctx.beginPath();
+      ctx.moveTo(axises[0].x, 0);
+      ctx.lineTo(axises[0].x, canvas.height);
+      ctx.moveTo(0, axises[1].y);
+      ctx.lineTo(canvas.width, axises[1].y);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, axises[0].y);
+      ctx.lineTo(canvas.width, axises[0].y);
+      ctx.moveTo(axises[1].x, 0);
+      ctx.lineTo(axises[1].x, canvas.height);
+      ctx.strokeStyle = 'gray';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Function to draw the Bezier curve
+    function drawCurves() {
+      function _drawBezier(point1, point2, point3, point4) {
         ctx.beginPath();
-        ctx.moveTo(axises[0].x, 0);
-        ctx.lineTo(axises[0].x, canvas.height);
-        ctx.moveTo(0, axises[1].y);
-        ctx.lineTo(canvas.width, axises[1].y);
-        ctx.strokeStyle = 'black';
+        ctx.moveTo(point1.x, point1.y);
+        ctx.bezierCurveTo(
+          point2.x, point2.y,
+          point3.x, point3.y,
+          point4.x, point4.y
+        );
+        ctx.strokeStyle = 'red';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.moveTo(0, axises[0].y);
-        ctx.lineTo(canvas.width, axises[0].y);
-        ctx.moveTo(axises[1].x, 0);
-        ctx.lineTo(axises[1].x, canvas.height);
+        ctx.moveTo(point1.x, point1.y);
+        ctx.lineTo(point2.x, point2.y);
+        ctx.lineTo(point3.x, point3.y);
+        ctx.lineTo(point4.x, point4.y);
         ctx.strokeStyle = 'gray';
         ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // Function to draw the Bezier curve
-      function drawCurves() {
-        function _drawBezier(point1, point2, point3, point4) {
-          ctx.beginPath();
-          ctx.moveTo(point1.x, point1.y);
-          ctx.bezierCurveTo(
-            point2.x, point2.y,
-            point3.x, point3.y,
-            point4.x, point4.y
-          );
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+      function _drawLine(point1, point2) {
+        ctx.beginPath();
+        ctx.moveTo(point1.x, point1.y);
+        ctx.lineTo(point2.x, point2.y);
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
 
-          ctx.beginPath();
-          ctx.moveTo(point1.x, point1.y);
-          ctx.lineTo(point2.x, point2.y);
-          ctx.lineTo(point3.x, point3.y);
-          ctx.lineTo(point4.x, point4.y);
-          ctx.strokeStyle = 'gray';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+      for (let i = 0; i < points.length - 1; i++) {
+        if (points[i + 1].control1 && points[i + 1].control2) {
+          _drawBezier(points[i], points[i + 1].control1, points[i + 1].control2, points[i + 2]);
+          i++;
+        } else {
+          _drawLine(points[i], points[i + 1]);
         }
+      }
+    }
 
-        function _drawLine(point1, point2) {
-          ctx.beginPath();
-          ctx.moveTo(point1.x, point1.y);
-          ctx.lineTo(point2.x, point2.y);
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
+    // Function to draw the canvas background
+    function drawBackground() {
+      ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+    }
 
-        for (let i = 0; i < points.length - 1; i++) {
-          if (points[i + 1].control1 && points[i + 1].control2) {
-            _drawBezier(points[i], points[i + 1].control1, points[i + 1].control2, points[i + 2]);
-            i++;
-          } else {
-            _drawLine(points[i], points[i + 1]);
-          }
+    function cubicBezierInterceptY(targetX, p0, p1, p2, p3, tolerance = 1e-2) {
+      let t0 = 0;
+      let t1 = 1;
+
+      while (t0 < t1) {
+        let t = (t0 + t1) / 2;
+        let x = (1 - t) ** 3 * p0.x + 3 * (1 - t) ** 2 * t * p1.x + 3 * (1 - t) * t ** 2 * p2.x + t ** 3 * p3.x;
+
+        if (Math.abs(x - targetX) < tolerance) {
+          return (1 - t) ** 3 * p0.y + 3 * (1 - t) ** 2 * t * p1.y + 3 * (1 - t) * t ** 2 * p2.y + t ** 3 * p3.y;
+        } else if (x < targetX) {
+          t0 = t;
+        } else {
+          t1 = t;
         }
       }
 
-      // Function to draw the canvas background
-      function drawBackground() {
-        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
-      }
+      // If we didn't converge, return undefined or handle as needed.
+      return undefined;
+    }
 
-      function cubicBezierInterceptY(targetX, p0, p1, p2, p3, tolerance = 1e-2) {
-        let t0 = 0;
-        let t1 = 1;
+    function linearInterceptY(x, p0, p1) {
+      // Calculate the slope of the line
+      const slope = (p1.y - p0.y) / (p1.x - p0.x);
 
-        while (t0 < t1) {
-          let t = (t0 + t1) / 2;
-          let x = (1 - t) ** 3 * p0.x + 3 * (1 - t) ** 2 * t * p1.x + 3 * (1 - t) * t ** 2 * p2.x + t ** 3 * p3.x;
+      // Calculate the Y-coordinate using the equation of a line
+      const y = p0.y + slope * (x - p0.x);
 
-          if (Math.abs(x - targetX) < tolerance) {
-            return (1 - t) ** 3 * p0.y + 3 * (1 - t) ** 2 * t * p1.y + 3 * (1 - t) * t ** 2 * p2.y + t ** 3 * p3.y;
-          } else if (x < targetX) {
-            t0 = t;
-          } else {
-            t1 = t;
-          }
+      return y;
+    }
+
+    function main() {
+      window.canvas = document.getElementById('canvas');
+      window.ctx = canvas.getContext('2d');
+      window.imageUpload = document.getElementById('imageUpload');
+      window.clearBkg = document.getElementById('clearBkg');
+      window.addCurve = document.getElementById('addCurve');
+      window.pointList = document.getElementById('pointList');
+      window.xCoordinate = document.getElementById('XCoordinate');
+      window.yCoordinate = document.getElementById('YCoordinate');
+      window.pythonCode = document.getElementById("python");
+      window.importJson = document.getElementById("importJson");
+
+      window.backgroundImg = new Image();
+      window.selectedPoint = null;
+      window.selectedPointIndex = -1;
+      window.clickDown = false;
+
+      window.numberOfSteps = new Decimal(1000);
+      window.initialLR = new Decimal(0.1);
+
+      // Control points
+      window.points = [{
+        x: canvas.width / 16,
+        y: canvas.height / 16,
+        selected: false
+      },
+      {
+        control1: {
+          x: canvas.width / 16 * 7.5,
+          y: canvas.height / 16,
+          selected: false
+        },
+        control2: {
+          x: canvas.width / 16 * 7.5,
+          y: canvas.height / 16 * 15,
+          selected: false
         }
-
-        // If we didn't converge, return undefined or handle as needed.
-        return undefined;
+      },
+      {
+        x: canvas.width / 16 * 15,
+        y: canvas.height / 16 * 15,
+        selected: false
       }
-
-      function linearInterceptY(x, p0, p1) {
-        // Calculate the slope of the line
-        const slope = (p1.y - p0.y) / (p1.x - p0.x);
-
-        // Calculate the Y-coordinate using the equation of a line
-        const y = p0.y + slope * (x - p0.x);
-
-        return y;
-      }
+      ];
+      window.interception = null;
 
       // Initial draw
       syncUIWithPoints();
@@ -709,9 +598,9 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
           }
         }
         else {
-          if (points[0].x <= mouseX && mouseX <= points[points.length-1].x) {
+          if (points[0].x <= mouseX && mouseX <= points[points.length - 1].x) {
             let leftIndex = -1;
-            let rightIndex = points.length-1;
+            let rightIndex = points.length - 1;
             for (let i in points) {
               if (!points[i]["control1"] && !points[i]["control2"]) {
                 if (points[i].x <= mouseX) {
@@ -727,11 +616,11 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             let interceptY = 0;
             if (leftIndex + 1 === rightIndex) {
               interceptY = linearInterceptY(mouseX, points[leftIndex], points[rightIndex]);
-              interception = {x: mouseX, y: interceptY};
+              interception = { x: mouseX, y: interceptY };
             }
             else if (leftIndex + 2 === rightIndex) {
-              interceptY = cubicBezierInterceptY(mouseX, points[leftIndex], points[leftIndex+1].control1, points[leftIndex+1].control2, points[rightIndex]);
-              interception = {x: mouseX, y: interceptY};
+              interceptY = cubicBezierInterceptY(mouseX, points[leftIndex], points[leftIndex + 1].control1, points[leftIndex + 1].control2, points[rightIndex]);
+              interception = { x: mouseX, y: interceptY };
             }
           }
         }
@@ -761,12 +650,13 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
       importJson.addEventListener('click', () => {
         const text = window.prompt("Enter the JSON for the points:");
         if (text) {
-          const json = JSON.parse(text);
+          try {
+            const json = JSON.parse(text);
 
-          numberOfSteps = json[json.length - 1].x;
-          initialLR = json[0].y;
+            numberOfSteps = new Decimal(json[json.length - 1].x);
+            initialLR = new Decimal(json[0].y);
 
-          points = [{
+            points = [{
               x: canvas.width / 16,
               y: canvas.height / 16,
               selected: false
@@ -775,22 +665,25 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
               x: canvas.width / 16 * 15,
               y: canvas.height / 16 * 15,
               selected: false
-            }
-          ];
+            }];
 
-          for (let i = 1; i < json.length - 1; i++) {
-            if (json[i].control1 && json[i].control2) {
-              points.splice(i, 0, {
-                control1: realToCanvas(json[i].control1),
-                control2: realToCanvas(json[i].control2),
-              });
-            } else {
-              points.splice(i, 0, realToCanvas(json[i]));
+            for (let i = 1; i < json.length - 1; i++) {
+              if (json[i].control1 && json[i].control2) {
+                points.splice(i, 0, {
+                  control1: realToCanvas(json[i].control1),
+                  control2: realToCanvas(json[i].control2),
+                });
+              } else {
+                points.splice(i, 0, realToCanvas(json[i]));
+              }
             }
+
+            syncUIWithPoints();
+            drawAll();
           }
-
-          syncUIWithPoints();
-          drawAll();
+          catch (_) {
+            window.alert("Invalid JSON");
+          }
         }
       });
 
@@ -821,13 +714,13 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
       xCoordinate.addEventListener('change', (v) => {
         if (selectedPointIndex !== points.length - 1) {
           const onCanvas = realToCanvas({
-            x: xCoordinate.value,
-            y: yCoordinate.value,
+            x: new Decimal(xCoordinate.value),
+            y: new Decimal(yCoordinate.value),
           });
           selectedPoint.x = onCanvas.x;
           selectedPoint.y = onCanvas.y;
         } else {
-          numberOfSteps = parseInt(xCoordinate.value);
+          numberOfSteps = new Decimal(xCoordinate.value);
         }
         drawAll();
         showSelectedPointCoordinate();
@@ -843,13 +736,150 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
           selectedPoint.x = onCanvas.x;
           selectedPoint.y = onCanvas.y;
         } else {
-          initialLR = yCoordinate.value;
+          initialLR = new Decimal(yCoordinate.value);
         }
         drawAll();
         showSelectedPointCoordinate();
       });
+    }
+  </script>
+</head>
 
-    </script>
-  </body>
+<body onload="main()">
+  <table style="margin: auto;">
+    <tr>
+      <td rowspan="2" valign="top" style="padding-right: 40px; padding-top: 40px; width: 540px;">
+        <big>How to use this designer:</big>
+        <ol class="instructions">
+          <li>
+            <b>Set the initial learning rate:</b><br />
+            Select the left-most curve handler (square box) and then set the initial learning rate in the "LR" text box
+            (found in the top-right corner).
+          </li>
+          <li>
+            <b>Set the number of steps you want to train your model:</b><br />
+            Select the right-most curve handler (square box) and then set the number of steps in the "step" text box
+            (found on the left side of "LR" text box).<br />
+            The steps here refers to the number of times you'll be calling:
+            <pre>scheduler.step()</pre>
+          </li>
+          <li>
+            <b>Manipulate the curve as you like by adding new parts and adjusting them using their handlers:</b><br />
+            You can add as many new parts as you like to the curve using the "Add curve" button.</br>
+            Each curve could be either a bezier or a straight line which you can select by changing their respective
+            dropdown menu.
+          </li>
+          <li>
+            <b>Copy the code and use it in your own:</b><br />
+            The Python code will always match the state of the curve as you manipulate it. You can also use the provided
+            pip command to install the package.
+          </li>
+        </ol>
+        <br />
+        <big>Notes and other features:</big>
+        <ol class="instructions">
+          <li>
+            <b>The curve always ends in learning rate = 0:</b><br />
+            The design of this tool mandates to end the curve in a point with LR equals to zero. If this is something
+            that does not work for you, you can add a new line to the end of the curve and with step value the same as
+            the last point but with a learning rate higher than zero.
+          </li>
+          <li>
+            <b>Setting a background for the designer:</b><br />
+            Using this feature, if you have a screenshot of your previous training loss curves, you can set it as the
+            background and try to design your LR scheduler accordingly. This way you don't event need to pay attention
+            to the X axis (steps) values since everything will be visually obvious.
+          </li>
+          <li>
+            <b>Editting an existing curve:</b><br />
+            If you have an existing curve from before and now you would like to tweak it, use the "Import JSON" button.
+            Copy and paste the JSON (only) into the prompt and the curve will be restored.
+          </li>
+          <li>
+            <b>Validity of the curve:</b><br />
+            While there are some restriction applied to make sure the generated curve is a valid one (like you cannot
+            move an endpoint handler past its previous or next one), but that does not mean that all the curves
+            generated using this tool are valid ones. All you need to do to make sure the curve's valid is never to let
+            the curve to go backwards (there shoudn't be a single X with more than one Y value).
+          </li>
+          <li>
+            <b>Number precision:</b><br />
+            Due to the lack of precision when it comes to decimal numbers in Javascript, this program uses a library
+            called <a href="https://github.com/MikeMcl/decimal.js" target="_blank">decimal.js</a> to compensate for
+            that. And for the same reason, the numbers are printed in the JSON as strings instead of numbers. This is
+            intentional and expected by the counterpart code on the Python side. Having said that, even though not
+            recommented, it would be fine if you write them as numbers in the JSON, they will only lose precision and
+            won't throw any errors.
+          </li>
+        </ol>
+      </td>
+      <td>
+
+        <table>
+          <tr>
+            <td>
+              <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
+            </td>
+            <td align="right">
+              step: <input type="text" id="XCoordinate" size="12" disabled />
+              LR: <input type="text" id="YCoordinate" size="12" disabled />
+            </td>
+            <td align="center">
+              <button id="addCurve">Add curve</button>
+            </td>
+          </tr>
+          <tr>
+            <td valign="top" colspan="2" rowspan="2">
+              <canvas id="canvas" width="1000" height="600" style="border: 1px solid black;"></canvas>
+            </td>
+            <td valign="top">
+              <ol id="pointList">
+                <li>
+                  <select>
+                    <option>Line</option>
+                    <option>Bezier</option>
+                  </select>
+                  <button>x</button>
+                </li>
+              </ol>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" valign="bottom">
+              <button id="importJson">Import JSON</button>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <div class="code-container">
+          $ <span class="code" id="pip">pip install git+https://github.com/ziadloo/TheOneLRScheduler.git</span>
+          <button class="copy-button" onclick="copyToClipboard('pip')">Copy</button>
+        </div>
+        <br />
+        <div class="code-container">
+          <span class="code" id="python"></span>
+          <button class="copy-button" onclick="copyToClipboard('python')">Copy</button>
+        </div>
+
+        <script>
+          function copyToClipboard(codeBoxId) {
+            const codeText = document.getElementById(codeBoxId);
+            const textArea = document.createElement("textarea");
+            textArea.value = codeText.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert("Code copied to clipboard!");
+          }
+        </script>
+      </td>
+    </tr>
+  </table>
+</body>
 
 </html>
