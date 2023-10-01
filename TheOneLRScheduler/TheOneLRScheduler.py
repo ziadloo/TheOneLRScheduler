@@ -3,11 +3,22 @@ import torch
 
 class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
     def __init__(self, optimizer, points):
+        if not ("x" in points[0] and "y" in points[0]):
+            raise Exception("Invalid input. The starting point should be a coordinate.")
+        if not ("x" in points[-1] and "y" in points[-1]):
+            raise Exception("Invalid input. The ending point should be a coordinate.")
+
         curves = []
         for i in range(1, len(points)):
-            if "control1" in points[i]:
-                continue
-            elif "control1" in points[i-1]:
+            if not (("control1" in points[i] and "control2" in points[i]) !=
+                ("x" in points[i] and "y" in points[i])):
+                raise Exception("Invalid input. The provided points could not be parsed as expected.")
+            elif "control1" in points[i] and "control2" in points[i]:
+                if "control1" in points[i-1] and "control2" in points[i-1]:
+                    raise Exception("Invalid input. There cannot be two controller blocks in a row.")
+                else:
+                    continue
+            elif "control1" in points[i-1] and "control2" in points[i-1]:
                 curves.append({
                         "type": "bezier",
                         "from": {
@@ -27,19 +38,18 @@ class TheOneLRScheduler(torch.optim.lr_scheduler.LambdaLR):
                             "y": float(points[i]["y"]),
                         },
                     })
-            else:
-                if points[i-1]["x"] != points[i]["x"]:
-                    curves.append({
-                            "type": "line",
-                            "from": {
-                                "x": float(points[i-1]["x"]),
-                                "y": float(points[i-1]["y"]),
-                            },
-                            "to": {
-                                "x": float(points[i]["x"]),
-                                "y": float(points[i]["y"]),
-                            },
-                        })
+            elif points[i-1]["x"] != points[i]["x"]:
+                curves.append({
+                        "type": "line",
+                        "from": {
+                            "x": float(points[i-1]["x"]),
+                            "y": float(points[i-1]["y"]),
+                        },
+                        "to": {
+                            "x": float(points[i]["x"]),
+                            "y": float(points[i]["y"]),
+                        },
+                    })
 
         scaling_factor = float(points[0]["y"])
         def _get_sample(i):
