@@ -5223,16 +5223,6 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         ctx.stroke();
 
         const realIntercept = canvasToReal(interception);
-        /*
-        let roundingFactor = new Decimal(initialLR).log().floor();
-        if (roundingFactor.gte(0)) { // || roundingFactor === Number.NEGATIVE_INFINITY
-          roundingFactor = 100;
-        }
-        else {
-          roundingFactor = Math.pow(10, -roundingFactor+3)
-        }
-        drawBalloon(`Step: ${Math.round(realIntercept.x.toNumber())}`, `LR: ${Math.round(realIntercept.y*roundingFactor)/roundingFactor}`, interception.x, interception.y);
-        */
         drawBalloon(`Step: ${Math.round(realIntercept.x.toNumber())}`, `LR: ${realIntercept.y.toExponential(3)}`, interception.x, interception.y);
       }
     }
@@ -5409,6 +5399,8 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
       window.yCoordinate = document.getElementById('YCoordinate');
       window.pythonCode = document.getElementById("python");
       window.importJson = document.getElementById("importJson");
+      window.heightElement = document.getElementById("heightElement");
+      window.originalHeight = canvas.height;
 
       window.backgroundImg = new Image();
       window.selectedPoint = null;
@@ -5496,7 +5488,7 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         const mouseY = e.clientY - canvas.getBoundingClientRect().top;
         interception = null;
         if (clickDown && selectedPoint !== null) {
-          if (selectedPointIndex != -1) {
+          if (selectedPointIndex !== -1) {
             let prevPoint = null;
             for (let i = selectedPointIndex; i > 0; i--) {
               if (!points[i - 1].control1 || !points[i - 1].control2) {
@@ -5513,8 +5505,7 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
               }
             }
 
-            //console.log(prevPoint);
-
+            //The x coordinate of the selected handler is limited by its neigbours
             if (prevPoint && nextPoint) {
               selectedPoint.x = Math.max(mouseX, prevPoint.x);
               selectedPoint.x = Math.min(selectedPoint.x, nextPoint.x);
@@ -5523,17 +5514,27 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             } else if (nextPoint) {
               selectedPoint.x = Math.min(mouseX, nextPoint.x);
             } else {
-              console.log(337);
               selectedPoint.x = mouseX;
             }
 
-            selectedPoint.y = mouseY;
+            //The y coordinate of the selected handler could be limited if we are
+            // talking about the first or the last hanlder (they block each other)
+            if (selectedPointIndex === 0) {
+              selectedPoint.y = Math.min(mouseY, points[points.length-1].y);
+            }
+            else if (selectedPointIndex === points.length-1) {
+              selectedPoint.y = Math.max(mouseY, points[0].y);
+            }
+            else {
+              selectedPoint.y = mouseY;
+            }
           } else {
             selectedPoint.x = mouseX;
             selectedPoint.y = mouseY;
           }
         }
         else {
+          //Draw the balloon if needed
           if (points[0].x <= mouseX && mouseX <= points[points.length - 1].x) {
             let leftIndex = -1;
             let rightIndex = points.length - 1;
@@ -5668,7 +5669,6 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             x: xCoordinate.value,
             y: yCoordinate.value,
           });
-          console.log(onCanvas);
           selectedPoint.x = onCanvas.x;
           selectedPoint.y = onCanvas.y;
         } else {
@@ -5676,6 +5676,25 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
         }
         drawAll();
         showSelectedPointCoordinate();
+      });
+
+      heightElement.addEventListener('change', () => {
+        const heightFactor = parseFloat(heightElement.value);
+        const newHight = window.originalHeight * heightFactor;
+        const heightMovement = newHight - canvas.height;
+
+        canvas.height = newHight;
+
+        for (let i = 0; i < points.length; i++) {
+          if (points[i].control1 && points[i].control2) {
+            points[i].control1.y += heightMovement;
+            points[i].control2.y += heightMovement;
+          } else {
+            points[i].y += heightMovement;
+          }
+        }
+
+        drawAll();
       });
     }
   </script>
@@ -5756,6 +5775,15 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             <td>
               <input type="file" id="imageUpload" accept="image/*"> <button id="clearBkg">Clear background</button>
             </td>
+            <td>
+              Height:
+              <select id="heightElement">
+                <option value="1.0" selected>100%</option>
+                <option value="1.5">150%</option>
+                <option value="2.0">200%</option>
+                <option value="5.0">500%</option>
+              </select>
+            </td>
             <td align="right">
               step: <input type="text" id="XCoordinate" size="12" disabled />
               LR: <input type="text" id="YCoordinate" size="12" disabled />
@@ -5765,7 +5793,7 @@ scheduler = TheOneLRScheduler(optimizer, points)`;
             </td>
           </tr>
           <tr>
-            <td valign="top" colspan="2" rowspan="2">
+            <td valign="top" colspan="3" rowspan="2">
               <canvas id="canvas" width="1000" height="600" style="border: 1px solid black;"></canvas>
             </td>
             <td valign="top">
